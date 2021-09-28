@@ -17,14 +17,7 @@ public class Main {
     private static Map<String, String> COMMAND_MAP = new HashMap<>();
     private static JTextArea area;
 
-    static {
-        COMMAND_MAP.put("huawei", "adb shell dumpsys activity | grep -i \"mLastResumedActivity\"");
-        COMMAND_MAP.put("xiaomi", "adb shell dumpsys activity | grep -i \"topActivity\"");
-        COMMAND_MAP.put("vivo", "adb shell  dumpsys activity | grep -i \"mResumedActivity\"");
-        COMMAND_MAP.put("oppo", "adb shell  dumpsys activity | grep -i mCurrentFocus=Window");
-    }
 
-    private static final String DEFAULT_COMMAND = "adb shell dumpsys activity | grep -i run";
 
     private static String currentActivityName;
     private static JLabel stateLabel;
@@ -157,16 +150,10 @@ public class Main {
     private static void getCurrentActivityName(NameGetListener nameGetListener) {
         getError = false;
         //获取手机品牌
-        execute("adb shell getprop | grep ro.product.manufacturer", new CommandResultImpl() {
+        execute("adb shell dumpsys activity top | grep \"ACTIVITY\"", new CommandResultImpl() {
             @Override
             public void success(String info) {
-                String commandForPhone = getCommandForPhone(info);
-                execute(commandForPhone, new CommandResultImpl() {
-                    @Override
-                    public void success(String info) {
-                        nameGetListener.onNameGet(getActivityName(info));
-                    }
-                });
+                nameGetListener.onNameGet(getActivityName(info));
             }
         });
     }
@@ -202,22 +189,6 @@ public class Main {
     }
 
 
-    private static String getCommandForPhone(String info) {
-        //根据品牌获取命令
-        String phone = info.toLowerCase();
-        String command = null;
-        for (String manufacturer : COMMAND_MAP.keySet()) {
-            if (phone.contains(manufacturer)) {
-                command = COMMAND_MAP.get(manufacturer);
-                break;
-            }
-        }
-        if (command == null) {
-            command = DEFAULT_COMMAND;
-        }
-        return command;
-    }
-
     private static String getActivityName(String info) {
         // 按指定模式在字符串查找
 
@@ -228,8 +199,13 @@ public class Main {
 
         // 现在创建 matcher 对象
         Matcher m = r.matcher(info);
-        if (m.find()) {
-            String name = m.group(1);
+        int start=0;
+        String name=null;
+        while (m.find(start)){
+            name=m.group(1);
+            start=m.end();
+        }
+        if (name!=null) {
             /**
              * 这种方式获取到的只有.activity.NewsDetailActivit 没有包名，需要加上包名
              * mLastResumedActivity=ActivityRecord{9785b44 u0 com.cmstop.jhrb/.activity.NewsDetailActivity t94446}
