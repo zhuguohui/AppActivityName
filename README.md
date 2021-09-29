@@ -1,5 +1,5 @@
 # AppActivityName
-#更新日志
+# 更新日志
 1.0.3  优化UI，支持release 版app的获取
 
 # 序言
