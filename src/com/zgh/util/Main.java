@@ -1,15 +1,15 @@
 package com.zgh.util;
 
+import com.sun.source.doctree.SeeTree;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,7 +27,7 @@ public class Main {
     public static void main(String[] args) {
         JFrame jFrame = new JFrame();
         jFrame.setSize(600, 400);
-        jFrame.setTitle("获取运行Activity工具");
+        jFrame.setTitle("Activity拾取器V1.0.3");
 
         //屏幕中央显示
         jFrame.setLocation(ShowUtil.showScreenCenter(jFrame));
@@ -38,13 +38,17 @@ public class Main {
         doGetActivityName(null);
 
         stateLabel = new JLabel();
-        stateLabel.setFont(new java.awt.Font("Dialog", 1, 18));
+        stateLabel.setText(" ");
+        stateLabel.setFont(new java.awt.Font("Dialog", 1, 15));
 
         BorderLayout bl = new BorderLayout(40, 40);
         jFrame.getContentPane().setLayout(bl);
 
+        JScrollPane jScrollPane=new JScrollPane();
+        jScrollPane.setSize(500,500);
+        jScrollPane.setViewportView(area);
 
-        jFrame.getContentPane().add(BorderLayout.CENTER, area);
+        jFrame.getContentPane().add(BorderLayout.CENTER, jScrollPane);
         jFrame.getContentPane().add(BorderLayout.NORTH, stateLabel);
 
 
@@ -128,7 +132,7 @@ public class Main {
                 }
                 String text = stateLabel.getText();
                 if (text != null && text.equals(state)) {
-                    stateLabel.setText("");
+                    stateLabel.setText("  ");
                 }
             }).start();
         }
@@ -164,21 +168,12 @@ public class Main {
         execute("adb shell  dumpsys activity " + activityName, new CommandResultImpl() {
             @Override
             public void success(String info) {
-                List<String> names = new ArrayList<>();
-                //使用正则表达式分析数据
-                String pattern = "#\\d:\\s*([\\w]*\\{\\w*\\})";
-                Pattern r = Pattern.compile(pattern);
-                Matcher m = r.matcher(info);
-                String str = null;
-                int matcher_start = 0;
-                //里面会有多个Added Fragment，只需要最后出现的一个
-                while (m.find(matcher_start)) {
-                    names.add(m.group(1));
-                    matcher_start = m.end();
+                List<String> names=getDevFragmentNames(info);
+                if(names.size() == 0){
+
+                    names=getReleaseFragmentNames(info);
                 }
 
-
-                System.out.println(str);
                 if (nameGetListener != null) {
                     nameGetListener.onNameGet(names);
                 }
@@ -186,6 +181,37 @@ public class Main {
 
             }
         });
+    }
+
+    private static List<String> getReleaseFragmentNames(String info){
+        Set<String> names = new HashSet<>();
+        //使用正则表达式分析数据
+        String pattern = "#\\d:\\s+([\\w\\.]*)\\{(\\w+)\\s+#\\d\\sid=\\w+\\}";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(info);
+        String str = null;
+        int matcher_start = 0;
+        //里面会有多个Added Fragment，只需要最后出现的一个
+        while (m.find(matcher_start)) {
+            names.add(m.group(1)+"{"+m.group(2)+"}");
+            matcher_start = m.end();
+        }
+        return new ArrayList<>(names);
+    }
+    private static List<String> getDevFragmentNames(String info){
+        Set<String> names = new HashSet<>();
+        //使用正则表达式分析数据
+                String pattern = "#\\d:\\s*([\\w]*\\{\\w*\\})";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(info);
+        String str = null;
+        int matcher_start = 0;
+        //里面会有多个Added Fragment，只需要最后出现的一个
+        while (m.find(matcher_start)) {
+            names.add(m.group(1));
+            matcher_start = m.end();
+        }
+        return new ArrayList<>(names);
     }
 
 
@@ -214,8 +240,13 @@ public class Main {
                 String pattern2 = "\\s([\\w\\.]*)\\/";
                 Pattern r2 = Pattern.compile(pattern2);
                 Matcher m2 = r2.matcher(info);
-                if (m2.find()) {
-                    String packName = m2.group(1);
+                start=0;
+                String packName=null;
+                while (m2.find(start)){
+                     packName = m2.group(1);
+                     start=m2.end();
+                }
+                if (packName!=null) {
                     return packName + name;
                 }
 
